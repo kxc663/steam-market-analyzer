@@ -1,9 +1,10 @@
 let receivedData = {};
 
-function init(){
+function init() {
     $("#displayTable").hide();
-    if($("#select").is(":checked")){
+    if ($("#select").is(":checked")) {
         $("#searchInput").prop("disabled", true);
+        $("#sort").prop("disabled", false);
     }
 }
 
@@ -18,6 +19,7 @@ $("#update").click(function () {
 $("#select").change(function () {
     const isChecked = $(this).is(":checked");
     $("#searchInput").prop("disabled", isChecked);
+    $("#sort").prop("disabled", !isChecked);
 });
 
 $("#current").change(function () {
@@ -32,16 +34,31 @@ $("#searchButton").click(async function () {
         return;
     } else if ($("#select").is(":checked")) {
         $("#displayTable td").remove();
-        const result = await searchAll();
-        console.log(result);
-        generateTable(result);
+        let result = await searchAll();
+        result = JSON.parse(result);
+        switch ($("#sort").val()) {
+            case "0":
+                generateTable(result);
+                break;
+            case "1":
+                generateTable(sortPrice(result, "asc"));
+                break;
+            case "2":
+                generateTable(sortPrice(result, "desc"));
+                break;
+            case "3":
+                generateTable(sortIncreasePecentage(result, "asc"));
+                break;
+            case "4":
+                generateTable(sortIncreasePecentage(result, "desc"));
+                break;
+        }
     } else {
         try {
             const result = await searchWeapon(searchName);
             if (result != null) {
                 $("#displayTable td").remove();
                 generateTable(result);
-                console.log(result);
             }
         } catch (error) {
             console.error("Error searching for weapon:", error);
@@ -63,9 +80,52 @@ async function searchWeapon(query) {
     }
 }
 
-async function searchAll(){
-    const response = $.get("/update", function (data) {});
+async function searchAll() {
+    const response = $.get("/update", function (data) { });
     return response;
+}
+
+function sortPrice(data, order) {
+    const sortedData = {};
+    const sortedKeys = Object.keys(data).sort((a, b) => {
+        const aPrice = data[a][data[a].length - 2].price;
+        const bPrice = data[b][data[b].length - 2].price;
+        if (order === "asc") {
+            return aPrice - bPrice;
+        } else {
+            return bPrice - aPrice;
+        }
+    });
+    sortedKeys.forEach((key) => {
+        sortedData[key] = data[key];
+    }
+    );
+    return sortedData;
+}
+
+function sortIncreasePecentage(data, order) {
+    const sortedData = {};
+    const sortedKeys = Object.keys(data).sort((a, b) => {
+        const aPercentage = getPriceIncrementPercentage(data[a], $("#days").val());
+        const bPercentage = getPriceIncrementPercentage(data[b], $("#days").val());
+        const hasData = aPercentage != "less" && aPercentage != "Not enough data" && bPercentage != "less" && bPercentage != "Not enough data";
+        if (order === "asc" && hasData) {
+            return aPercentage - bPercentage;
+        } else if (order === "desc" && hasData) {
+            return bPercentage - aPercentage;
+        } else if (aPercentage == "less" || aPercentage == "Not enough data" && bPercentage != "less" && bPercentage != "Not enough data") {
+            return 1;
+        } else if (bPercentage == "less" || bPercentage == "Not enough data" && aPercentage != "less" && aPercentage != "Not enough data") {
+            return -1;
+        } else {
+            return 0;
+        }
+    });
+    sortedKeys.forEach((key) => {
+        sortedData[key] = data[key];
+    }
+    );
+    return sortedData;
 }
 
 function generateTable(data) {
@@ -82,8 +142,8 @@ function generateTable(data) {
         const iconCell = document.createElement("td");
         const iconImg = document.createElement("img");
         iconImg.src = iconUrl;
-        iconImg.width = 80;
-        iconImg.height = 80;
+        iconImg.width /= 3;
+        iconImg.height /= 3;
         iconCell.appendChild(iconImg);
         row.appendChild(iconCell);
         const priceCell = document.createElement("td");
@@ -92,7 +152,7 @@ function generateTable(data) {
         const days = $("#days").val();
         const priceIncrementPercentage = getPriceIncrementPercentage(weaponData, days);
         const priceIncreaseCell = document.createElement("td");
-        if(priceIncrementPercentage != "less" && priceIncrementPercentage != "Not enough data") {
+        if (priceIncrementPercentage != "less" && priceIncrementPercentage != "Not enough data") {
             priceIncreaseCell.textContent = `${priceIncrementPercentage.toFixed(2)}%`;
         } else {
             priceIncreaseCell.textContent = "--";

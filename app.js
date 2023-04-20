@@ -24,6 +24,11 @@ function getMarketData(url) {
             let data = '';
             res.on('data', (chunk) => {
                 data += chunk;
+                fs.writeFile("html.txt", data, "utf8", function (err) {
+                    if (err) {
+                        console.log(err);
+                    }
+                });
             });
             res.on('end', () => {
                 resolve(data);
@@ -41,30 +46,32 @@ const getAllPagesHtml = async () => {
     const productHtml = [];
     for (let i = 1; i <= maxPages; i++) {
         // url format: https://steamcommunity.com/market/search?appid=730#p1
-        page_url = `${baseUrl}?appid=${appid}#p${i}`;
+        page_url = `${baseUrl}?appid=${appid}#p${i}_popular_desc`;
+        
         await getMarketData(page_url).then((html) => {
             pageHtml.push(html);
             const $ = cheerio.load(html);
             $('.market_listing_row_link').each((index, element) => {
                 productUrls.push($(element).attr('href'));
+                //console.log(productUrls);
             });
+            console.log("page" + i + "success");
         });
-        console.log("page" + i + "success");
         await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds before fetching next page
     }
     console.log("productURL success!");
 
-    for (let i = 0; i < productUrls.length - 5; i++) {
-        const html = await getMarketData(productUrls[i]);
-        const $ = cheerio.load(html);
-        const name = $('.market_listing_item_name').text().trim();
-        const icon_src = $('.market_listing_item_img').attr('srcset');
-        productHtml.push(html);
-        console.log("product" + i + " success")
-        const priceHistoryData = getPriceHistoryData(html);
-        priceHistoryData.push({ icon: icon_src });
-        products[name] = priceHistoryData;
-        console.log(products);
+    for (let i = 0; i < productUrls.length; i++) {
+        await getMarketData(productUrls[i]).then((html) => {
+            const $ = cheerio.load(html);
+            const name = $('.market_listing_item_name').text().trim();
+            const icon_src = $('.market_listing_item_img').attr('srcset');
+            productHtml.push(html);
+            console.log("product" + i + " success")
+            const priceHistoryData = getPriceHistoryData(html);
+            priceHistoryData.push({ icon: icon_src });
+            products[name] = priceHistoryData;
+        });
         await new Promise(r => setTimeout(r, 5000)); // Wait 5 seconds before fetching next page
     }
     fs.writeFile("data.json", JSON.stringify(products), "utf8", function (err) {
@@ -72,6 +79,7 @@ const getAllPagesHtml = async () => {
             console.log(err);
         }
     });
+    await new Promise(r => setTimeout(r, 2000));
     return products;
 };
 
@@ -92,26 +100,19 @@ const getPriceHistoryData = (html) => {
     return priceHistoryData;
 };
 
-function getPriceIncrementPercentage(data, days) {
-    const dataLength = data.length;
-    if (dataLength < 2) {
-        throw new Error("Not enough data points to calculate percentage.");
-    }
-    const mostRecentData = data[dataLength - 1];
-    const daysAgoIndex = dataLength - 1 - (days * 24); // Assuming there is one data point per hour
-    if (daysAgoIndex < 0) {
-        throw new Error("Not enough data points to go back the specified number of days.");
-    }
-    const daysAgoData = data[daysAgoIndex];
-    const startingPrice = daysAgoData.price;
-    const endingPrice = mostRecentData.price;
-    const priceIncrementPercentage = ((endingPrice - startingPrice) / startingPrice) * 100;
-    return priceIncrementPercentage;
+async function getMaxPage() {
+    const url = `${baseUrl}?appid=${appid}#p1`;
+    const html = await getMarketData(url);
+    const $ = cheerio.load(html);
+    const pageLinks = $('.market_paging_pagelink');
+    const maxPage = parseInt($(pageLinks[pageLinks.length - 1]).text().trim(), 10);
+    console.log(maxPage);
+    return maxPage;
 }
 
 app.get('/update', async (req, res) => {
     // if data.json is not empty, then send the data.json
-    // if data.json is empty or not exist, then update
+    // if data.json is empty or not exist, then update the data.json
     if (fs.existsSync("data.json") == false || fs.readFileSync("data.json", "utf8") == "") {
         const data = await getAllPagesHtml();
         res.send(data);

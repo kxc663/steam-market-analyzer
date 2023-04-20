@@ -21,7 +21,7 @@
         <label for="searchAll"> Search All</label>
         <input type="checkbox" id="select" name="searchAll"><br><br>
         <label for="days"> Price increase percentage in </label>
-        <select id="days" name = "days">
+        <select id="days" name="days">
             <option value="1">1 Day</option>
             <option value="7">7 Days</option>
             <option value="30">30 Days</option>
@@ -29,7 +29,15 @@
             <option value="180">180 Days</option>
             <option value="365">365 Days</option>
         </select>
-        
+        <label for="sort"> Sorted by </label>
+        <select id="sort" name="sort">
+            <option value="0">Default</option>
+            <option value="1">Price low to high</option>
+            <option value="2">Price high to low</option>
+            <option value="3">Price increase percentage low to high</option>
+            <option value="4">Price increase percentage high to low</option>
+        </select>
+
     </div><br>
     <table id="displayTable" hidden>
         <thead>
@@ -43,13 +51,14 @@
         <tbody id="tableBody">
         </tbody>
     </table>
+    <!--
     <div class="copyright">
         <center>
             <p>&copy Copyright 2023 Design by Kaitao Chen</p>
             <p>Only for academic use</p>
         </center>
     </div>
-
+    -->
 </body>
 
 </html>
