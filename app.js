@@ -46,8 +46,8 @@ const getAllPagesHtml = async () => {
     const productHtml = [];
     for (let i = 1; i <= maxPages; i++) {
         // url format: https://steamcommunity.com/market/search?appid=730#p1
+        //page_url = `${baseUrl}?appid=${appid}#p${i}_popular_desc`;
         page_url = `${baseUrl}?appid=${appid}#p${i}_popular_desc`;
-        
         await getMarketData(page_url).then((html) => {
             pageHtml.push(html);
             const $ = cheerio.load(html);
